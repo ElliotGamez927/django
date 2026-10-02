@@ -3,7 +3,7 @@
 
 ## Roles del equipo
 - **Product Owner:** MC. Román Fernando López González
-- **Scrum Master / Equipo:** [Elliot Antonio Gamez Gonzalez]
+- **Scrum Master / Equipo:** Elliot Antonio Gamez Gonzalez
 
 ## Backlog completo (extracto W01–W06)
 
