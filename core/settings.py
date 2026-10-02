@@ -78,9 +78,23 @@ USE_I18N      = True
 USE_TZ        = True
 
 # ── Archivos estáticos ────────────────────────────────────────────────────
+#STATIC_URL  = '/static/'
+#STATIC_ROOT = BASE_DIR / 'staticfiles'
+#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+# settings.py — sección de estáticos (verificar, no duplicar)
 STATIC_URL  = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'   # destino de collectstatic
+
+# STATICFILES_DIRS ≠ STATIC_ROOT (error frecuente)
+STATICFILES_DIRS = [BASE_DIR / 'static']  # fuentes adicionales
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+
+
 
 # ── Archivos media ────────────────────────────────────────────────────────
 MEDIA_URL  = '/media/'
