@@ -24,7 +24,7 @@ y repositorio en GitHub con al menos 10 commits.
 
 **Total de puntos del sprint:** 10
 
-- URL pública: https://erp-django-utec.onrender.com
+- URL pública: https://erp-django-utec-teo8.onrender.com/
 - Tests: Ran 33 tests → OK
 - Commits: ≥ 6 en rama main
 - Fecha: ___/___/_____
