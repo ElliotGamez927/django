@@ -15,6 +15,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.onrender.com', 'localhost',
 #ALLOWED_HOSTS = []
 
 # ── Apps instaladas ───────────────────────────────────────────────────────
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -31,7 +32,10 @@ INSTALLED_APPS = [
     'productos',
     'ventas',
     'reportes',
+    'configuracion',   # ← nueva app W05
 ]
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
