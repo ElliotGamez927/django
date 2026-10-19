@@ -96,8 +96,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'   # destino de collectstatic
 # STATICFILES_DIRS ≠ STATIC_ROOT (error frecuente)
 STATICFILES_DIRS = [BASE_DIR / 'static']  # fuentes adicionales
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
+#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'core.storage.NoStrictManifestStorage'
 
 
 
