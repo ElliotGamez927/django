@@ -41,6 +41,19 @@ protegidos por autenticación y 3 roles de acceso.
 | 3 roles RBAC (Gerente/Vendedor/Almacén) | ⏳ W09 |
 **Total Sprint 2:** 27 puntos
 
+## Sprint 2 — Estado final W09
+
+| HU | Estado | Pts |
+|---|---|---|
+| HU-E3-01 a HU-E3-09 | ✅ Completadas | 27/27 |
+
+## Hito M3 — ALCANZADO ✅
+- CRUD: 4 módulos con lectura + escritura funcional
+- Auth: allauth con login/logout Fable 5
+- RBAC: 3 grupos (Gerente/Vendedor/Almacén) con permisos
+- Tests: Ran 100 tests → OK
+- Fecha: ___/___/_____
+
 
 ## DoD — Sprint 2
 - ListView responde HTTP 200 y muestra objetos de la BD
