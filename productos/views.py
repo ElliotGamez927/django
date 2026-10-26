@@ -4,6 +4,9 @@
 ListView y DetailView con select_related y paginación.
 Escritura (Create/Update/Delete) se implementa en W08.
 """
+# productos/views.py — actualizar el import al inicio:
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+
 from django.views.generic import DetailView, ListView
 
 from .models import Producto
@@ -106,24 +109,24 @@ class ProductoUpdateView(LoginRequiredMixin, UpdateView):
         )
         return response
 
-
-class ProductoDeleteView(LoginRequiredMixin, DeleteView):
+# Reemplazar la clase ProductoDeleteView:
+class ProductoDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """Confirmación y borrado de un producto.
 
-    SOLO acepta POST. El template debe incluir
-    un formulario con {% csrf_token %} para evitar CSRF.
+    Requiere permiso 'productos.delete_producto'.
+    Sin permiso: HTTP 403 Forbidden (raise_exception=True).
     """
 
-    model         = Producto
-    template_name = 'productos/eliminar.html'
-    pk_url_kwarg  = 'producto_id'
-    success_url   = reverse_lazy('productos:lista')
+    model               = Producto
+    template_name       = 'productos/eliminar.html'
+    pk_url_kwarg        = 'producto_id'
+    success_url         = reverse_lazy('productos:lista')
+    permission_required = 'productos.delete_producto'
+    
+
 
     def form_valid(self, form):
         nombre   = self.object.nombre
         response = super().form_valid(form)
-        messages.success(
-            self.request,
-            f'Producto "{nombre}" eliminado.'
-        )
+        messages.success(self.request, f'Producto "{nombre}" eliminado.')
         return response

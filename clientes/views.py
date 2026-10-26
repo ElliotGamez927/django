@@ -16,6 +16,9 @@ from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView
 )
 from .forms import ClienteForm
+# Agregar PermissionRequiredMixin al import:
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+
 
 
 class ClienteListView(ListView):
@@ -82,14 +85,14 @@ class ClienteUpdateView(LoginRequiredMixin, UpdateView):
         )
         return response
 
+# Actualizar ClienteDeleteView:
+class ClienteDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    model               = Cliente
+    template_name       = 'clientes/eliminar.html'
+    pk_url_kwarg        = 'cliente_id'
+    success_url         = reverse_lazy('clientes:lista')
+    permission_required = 'clientes.delete_cliente'
 
-class ClienteDeleteView(LoginRequiredMixin, DeleteView):
-    """Confirmación y borrado de un cliente."""
-
-    model         = Cliente
-    template_name = 'clientes/eliminar.html'
-    pk_url_kwarg  = 'cliente_id'
-    success_url   = reverse_lazy('clientes:lista')
 
     def form_valid(self, form):
         nombre   = self.object.nombre

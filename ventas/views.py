@@ -4,6 +4,14 @@
 Lectura: VentaListView y VentaDetailView.
 Escritura (crear_venta): W08.
 """
+
+# ventas/views.py — actualizar imports al inicio:
+from django.contrib.auth.decorators import (
+    login_required,
+    permission_required,
+)
+
+
 from django.views.generic import DetailView, ListView
 
 from .models import Venta
@@ -18,6 +26,7 @@ from django.views.generic import DeleteView, DetailView, ListView
 
 from .forms  import DetalleVentaForm, VentaForm
 from .models import DetalleVenta, Venta
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
 
 
@@ -55,29 +64,28 @@ class VentaDetailView(DetailView):
         )
 
 
+# Eliminar la función crear_venta de W08 y reemplazar por:
+
+@login_required
+@permission_required('ventas.add_venta', raise_exception=True)
 def crear_venta(request):
     """Crea un encabezado de venta con una línea de detalle.
 
+    Decoradores (se aplican de abajo hacia arriba):
+        @login_required            → verifica autenticación
+        @permission_required(...)  → verifica permiso add_venta
+
     GET  → muestra los dos formularios vacíos.
     POST → valida ambos, guarda si correctos, muestra errores si no.
-
-    Protección: redirige a login si no autenticado.
-    Nota: para múltiples líneas usar formsets (implementar en Espiral 5).
     """
-    if not request.user.is_authenticated:
-        return redirect(
-            f"{settings.LOGIN_URL}?next={request.path}"
-        )
-
     venta_form   = VentaForm(request.POST or None)
     detalle_form = DetalleVentaForm(request.POST or None)
 
     if request.method == 'POST':
         if venta_form.is_valid() and detalle_form.is_valid():
-            venta          = venta_form.save()
-            detalle        = detalle_form.save(commit=False)
-            detalle.venta  = venta
-            # precio_unitario se auto-captura en save() si es None
+            venta         = venta_form.save()
+            detalle       = detalle_form.save(commit=False)
+            detalle.venta = venta
             detalle.save()
             messages.success(
                 request,
@@ -92,13 +100,13 @@ def crear_venta(request):
     })
 
 
-class VentaDeleteView(LoginRequiredMixin, DeleteView):
-    """Confirmación y borrado de una venta (y sus detalles en cascada)."""
+class VentaDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    model               = Venta
+    template_name       = 'ventas/eliminar.html'
+    pk_url_kwarg        = 'venta_id'
+    success_url         = reverse_lazy('ventas:lista')
+    permission_required = 'ventas.delete_venta'
 
-    model         = Venta
-    template_name = 'ventas/eliminar.html'
-    pk_url_kwarg  = 'venta_id'
-    success_url   = reverse_lazy('ventas:lista')
 
     def form_valid(self, form):
         pk       = self.object.pk

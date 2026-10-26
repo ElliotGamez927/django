@@ -26,8 +26,8 @@ class ProductoEscrituraTest(TestCase):
     """Tests de CreateView, UpdateView y DeleteView de Producto."""
 
     def setUp(self):
-        self.user = User.objects.create_user(
-            'testuser', password='testpass123'
+        self.user = User.objects.create_superuser(
+            'testuser', 'testuser@example.com', password='testpass123'
         )
         self.cat  = Categoria.objects.create(nombre='Cat Test')
         self.prod = Producto.objects.create(
@@ -164,7 +164,7 @@ class VentaEscrituraTest(TestCase):
     """Tests de crear_venta y VentaDeleteView."""
 
     def setUp(self):
-        self.user = User.objects.create_user('userV', password='pass')
+        self.user = User.objects.create_superuser('userV', 'userv@example.com', password='pass')
         cat       = Categoria.objects.create(nombre='Cat')
         self.prod = Producto.objects.create(
             nombre='P', precio=Decimal('100.00'), stock=5, categoria=cat
