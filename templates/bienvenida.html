@@ -1,14 +1,167 @@
 {% extends "base.html" %}
 {% block title %}Inicio{% endblock %}
 
+{% block extra_css %}
+
+<style>
+/* ===== Fondo decorativo (solo pantalla de inicio) ===== */
+.scene { position: fixed; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+.scene-space { display: none; }
+[data-theme="dark"] .scene-space { display: block; }
+[data-theme="dark"] .scene-earth { display: none; }
+
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
+@keyframes pulse   { from { transform: scale(1); } to { transform: scale(1.06); } }
+@keyframes rotarTierra { to { background-position: 300px 0; } }
+
+/* ---------- MODO NOCHE: espacio / sistema solar ---------- */
+.scene-space {
+    background:
+        radial-gradient(ellipse at 20% 15%, rgba(110,60,190,.35), transparent 55%),
+        radial-gradient(ellipse at 85% 75%, rgba(20,90,180,.30), transparent 55%),
+        #02030a;
+}
+.stars, .stars2 { position: absolute; inset: 0; background-repeat: repeat; }
+.stars {
+    background-image:
+        radial-gradient(1px 1px at 20px 30px,   #fff, transparent),
+        radial-gradient(1px 1px at 90px 120px,  #fff, transparent),
+        radial-gradient(1.5px 1.5px at 160px 60px, #cfe3ff, transparent),
+        radial-gradient(1px 1px at 230px 180px, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 290px 90px, #ffe9c4, transparent);
+    background-size: 320px 220px;
+}
+.stars2 {
+    background-image:
+        radial-gradient(1.5px 1.5px at 60px 80px,  #fff, transparent),
+        radial-gradient(1px 1px at 200px 40px,     #cfe3ff, transparent),
+        radial-gradient(2px 2px at 330px 210px,    #fff, transparent),
+        radial-gradient(1px 1px at 120px 240px,    #ffe9c4, transparent);
+    background-size: 410px 290px;
+    animation: twinkle 4s ease-in-out infinite alternate;
+}
+.solar { position: absolute; left: 12%; top: 62%; width: 0; height: 0; }
+.sun {
+    position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fffbe0, #ffd54a 45%, #ff9b1a 80%);
+    box-shadow: 0 0 60px 30px rgba(255,170,40,.55), 0 0 160px 80px rgba(255,120,20,.25);
+    animation: pulse 6s ease-in-out infinite alternate;
+}
+.orbit {
+    position: absolute; border: 1px dashed rgba(255,255,255,.13); border-radius: 50%;
+    width: var(--d); height: var(--d); margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
+    animation: spin var(--t) linear infinite;
+}
+.planet {
+    position: absolute; top: 0; left: 50%; border-radius: 50%;
+    width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+}
+.mercurio { background: radial-gradient(circle at 35% 35%, #d6d1c9, #8d877f); }
+.venus    { background: radial-gradient(circle at 35% 35%, #f6dca0, #c9974f); }
+.tierra   { background: radial-gradient(circle at 35% 35%, #8fd8ff, #1f6fc4 60%, #1a5a3a); }
+.marte    { background: radial-gradient(circle at 35% 35%, #f08a68, #a63a22); }
+.jupiter  {
+    background: linear-gradient(180deg, #c99b6d 0 20%, #e8d2b0 20% 35%,
+                                         #b97d52 35% 55%, #ecd9bb 55% 70%, #c48c5c 70%);
+}
+
+/* ---------- MODO DÍA: Tierra y Luna ---------- */
+.scene-earth {
+    background:
+        radial-gradient(ellipse 340px 90px at 18% 22%, rgba(255,255,255,.95), transparent 70%),
+        radial-gradient(ellipse 260px 70px at 30% 28%, rgba(255,255,255,.85), transparent 70%),
+        radial-gradient(ellipse 380px 100px at 72% 14%, rgba(255,255,255,.90), transparent 70%),
+        linear-gradient(180deg, #bfe0ff 0%, #e6f3ff 55%, #f7fbff 100%);
+}
+.earth-system { position: absolute; right: 9%; bottom: 12%; width: 280px; height: 280px; }
+.earth {
+    position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #7fd0ff 0%, #2b86da 50%, #0c4c94 100%);
+    box-shadow: 0 0 40px 10px rgba(110,180,255,.55), inset -30px -20px 50px rgba(0,20,70,.45);
+}
+.earth::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+        radial-gradient(ellipse 70px 46px at 80px 90px,  #4fae5a 60%, transparent 64%),
+        radial-gradient(ellipse 40px 60px at 120px 170px, #3f9a4f 60%, transparent 64%),
+        radial-gradient(ellipse 60px 36px at 200px 70px, #5cb865 60%, transparent 64%),
+        radial-gradient(ellipse 50px 40px at 235px 160px, #c9b26a 60%, transparent 64%),
+        radial-gradient(ellipse 90px 12px at 150px 130px, rgba(255,255,255,.75) 60%, transparent 70%);
+    background-size: 300px 100%; background-repeat: repeat-x;
+    animation: rotarTierra 40s linear infinite;
+}
+.earth::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 45%, rgba(0,20,60,.35) 100%);
+}
+.moon-orbit {
+    position: absolute; inset: -120px; border-radius: 50%;
+    border: 1px dashed rgba(27,79,138,.28);
+    animation: spin 36s linear infinite;
+}
+.moon {
+    position: absolute; top: 0; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 36%, #b9bdc4 0 7px, transparent 8px),
+        radial-gradient(circle at 66% 58%, #aab0b8 0 9px, transparent 10px),
+        radial-gradient(circle at 44% 74%, #b3b8bf 0 5px, transparent 6px),
+        radial-gradient(circle at 35% 30%, #ffffff, #d9dce1 55%, #8f959e 100%);
+    box-shadow: 0 0 18px rgba(255,255,255,.9), inset -8px -6px 14px rgba(40,50,70,.35);
+    animation: spin 36s linear infinite reverse;
+}
+
+/* Títulos legibles sobre el fondo oscuro */
+[data-theme="dark"] .erp-main h1, [data-theme="dark"] .erp-main h2,
+[data-theme="dark"] .erp-main h3, [data-theme="dark"] .erp-main h4,
+[data-theme="dark"] .erp-main h5, [data-theme="dark"] .erp-main h6 {
+    color: #E2EAF4; text-shadow: 0 0 14px rgba(120,170,255,.35);
+}
+
+/* Pantallas pequeñas y accesibilidad */
+@media (max-width: 768px) {
+    .earth-system { transform: scale(.6); transform-origin: bottom right; }
+    .solar { left: -4%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .stars2, .sun, .orbit, .earth::before, .moon-orbit, .moon { animation: none; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
+
+<!-- Fondo modo noche: sistema solar -->
+<div class="scene scene-space" aria-hidden="true">
+    <div class="stars"></div>
+    <div class="stars2"></div>
+    <div class="solar">
+        <div class="sun"></div>
+        <div class="orbit" style="--d:260px; --t:14s"><span class="planet mercurio" style="--s:12px"></span></div>
+        <div class="orbit" style="--d:400px; --t:24s"><span class="planet venus"    style="--s:20px"></span></div>
+        <div class="orbit" style="--d:560px; --t:36s"><span class="planet tierra"   style="--s:24px"></span></div>
+        <div class="orbit" style="--d:740px; --t:52s"><span class="planet marte"    style="--s:18px"></span></div>
+        <div class="orbit" style="--d:940px; --t:80s"><span class="planet jupiter"  style="--s:46px"></span></div>
+    </div>
+</div>
+
+<!-- Fondo modo día: Tierra y Luna -->
+<div class="scene scene-earth" aria-hidden="true">
+    <div class="earth-system">
+        <div class="earth"></div>
+        <div class="moon-orbit"><div class="moon"></div></div>
+    </div>
+</div>
+
 <div class="text-center py-4">
     <h1 style="font-family:'Playfair Display',serif;
                color:var(--clr-navy);font-size:2.2rem;">
-        📦 ERP Django
+        Moda Telas EAGG
     </h1>
     <p style="color:var(--clr-muted);font-size:1.05rem;">
-        Sistema de gestión empresarial · UTEC Celaya · Espiral 1 W02
+        Elliot Antonio Gamez Gonzalez 3°J
     </p>
     <div class="d-flex justify-content-center gap-2 mt-2 flex-wrap">
         <span class="badge-erp-gold">Django 4.2 LTS</span>
