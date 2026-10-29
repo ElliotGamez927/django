@@ -5,6 +5,8 @@ Orden de implementación:
   1. Categoria  (sin FK)
   2. Producto   (FK → Categoria, FK → Proveedor)  ← Parte 3
 """
+# productos/models.py — agregar al inicio:
+from .validators import validar_imagen_producto
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError   # ← agregar al inicio del archivo
@@ -72,6 +74,18 @@ class Producto(models.Model):
     activo    = models.BooleanField(
         default=True, verbose_name='Activo'
     )
+    # En la clase Producto — agregar campo imagen:
+
+    # Actualizar el campo imagen en la clase Producto:
+    imagen = models.ImageField(
+        upload_to='productos/',
+        null=True,
+        blank=True,
+        verbose_name='Imagen del producto',
+        help_text='Formatos: JPEG, PNG, WEBP. Máximo 5 MB.',
+        validators=[validar_imagen_producto],   # ← agregar
+    )
+    
     creado    = models.DateTimeField(
         auto_now_add=True, verbose_name='Fecha de registro'
     )
