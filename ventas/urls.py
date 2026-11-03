@@ -14,4 +14,6 @@ urlpatterns = [
          name='detalle'),
     path('nueva/',                  views.crear_venta,                 name='crear'),
     path('<int:venta_id>/eliminar/',views.VentaDeleteView.as_view(),   name='eliminar'),
+    # ... tus otras rutas de ventas ...
+    path('<int:venta_id>/pdf/', views.venta_pdf, name='pdf'),
 ]
