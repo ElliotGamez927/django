@@ -54,10 +54,14 @@
 
     <table class="info-table">
         <tr>
-            <td><strong>Cliente:</strong> {{ venta.cliente.nombre }} {{ venta.cliente.apellido }}</td>
+            <td>
+                <strong>Cliente:</strong> {{ venta.cliente.nombre }} {{ venta.cliente.apellido }}<br>
+                <strong>Correo:</strong> {{ venta.cliente.correo }}
+            </td>
             <td class="text-right"><strong>RFC:</strong> {{ venta.cliente.rfc|default:"N/A" }}</td>
         </tr>
     </table>
+    
 
     <table class="details-table">
         <thead>
