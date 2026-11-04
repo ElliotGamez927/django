@@ -20,4 +20,8 @@ exec gunicorn core.wsgi \
     --workers 2 \
     --timeout 120 \
     --log-file - \
+<<<<<<< HEAD
     --access-logfile -
+=======
+    --access-logfile -  
+>>>>>>> 956954572b301f9a90fab0b4054fe894c5ae0043

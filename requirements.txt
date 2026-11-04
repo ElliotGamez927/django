@@ -21,4 +21,8 @@ typing_extensions==4.16.0
 tzdata==2026.4
 urllib3==2.8.0
 whitenoise==6.12.0
+<<<<<<< HEAD
 xhtml2pdf==0.2.28
+=======
+openpyxl==3.1.2
+>>>>>>> 956954572b301f9a90fab0b4054fe894c5ae0043
