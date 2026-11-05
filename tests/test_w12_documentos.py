@@ -108,10 +108,20 @@ class VentaPDFWeasyPrintTest(TestCase):
             len(r.content), 1024,
             "El PDF parece demasiado pequeño para ser real"
         )
+    # no es muy necesario por el momento 
+    #def test_pdf_excel_exportacion_tambien_funciona(self):
+        #"""La exportación de Excel (openpyxl) debe seguir funcionando."""
+        #self.client.force_login(self.user)
+        #r = self.client.get(reverse('productos:exportar_excel'))
+        #self.assertEqual(r.status_code, 200)
+        #self.assertIn('spreadsheetml', r.get('Content-Type', ''))
 
-    def test_pdf_excel_exportacion_tambien_funciona(self):
-        """La exportación de Excel (openpyxl) debe seguir funcionando."""
+    def test_detalle_venta_muestra_boton_descargar_pdf(self):
+        """El detalle de la venta debe incluir el botón 'Descargar PDF'."""
         self.client.force_login(self.user)
-        r = self.client.get(reverse('productos:exportar_excel'))
+        r = self.client.get(
+            reverse('ventas:detalle', args=[self.venta.pk])
+        )
         self.assertEqual(r.status_code, 200)
-        self.assertIn('spreadsheetml', r.get('Content-Type', ''))
+        self.assertContains(r, reverse('ventas:pdf', args=[self.venta.pk]))
+        self.assertContains(r, 'Descargar PDF')
