@@ -233,6 +233,9 @@ def checkout(request):
             # ── 1. Vincular usuario con Cliente del ERP ────────────────
             cliente = obtener_o_crear_cliente(request.user)
 
+            # catalogo/views.py — en la función checkout(), sección POST:
+# Reemplazar la línea de creación del Pedido:
+
             # ── 2. Crear el Pedido con snapshot del carrito ────────────
             numero = generar_numero_pedido()
 
@@ -247,7 +250,6 @@ def checkout(request):
                 for prod_id, datos in carrito.items()
             ]
 
-            
             pedido = Pedido.objects.create(
                 numero_pedido  = numero,
                 cliente        = cliente,
