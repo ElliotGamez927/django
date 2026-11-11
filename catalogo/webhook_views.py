@@ -65,9 +65,9 @@ def stripe_webhook(request) -> HttpResponse:
 
     # stripe >= 15 devuelve StripeObject, que ya NO es un dict
     # (no tiene .get()). Lo convertimos a dict nativo de Python.
+        # stripe >= 15 devuelve StripeObject, que ya NO es un dict
     if hasattr(event, 'to_dict'):
         event = event.to_dict()
-
     # ── 2. Despachar por tipo de evento ────────────────────────────────────
     tipo = event['type']
     logger.info(f'Webhook recibido: {tipo}')
