@@ -1,4 +1,9 @@
 # core/settings.py
+# core/settings.py — verificar que existe al inicio:
+from datetime import timedelta   # ← agregar si no está
+
+# (ya debería estar si se instaló dj-database-url en W03)
+
 import environ
 from pathlib import Path
 
@@ -31,6 +36,8 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'rest_framework',
+    # core/settings.py — en INSTALLED_APPS, después de rest_framework:
+    'anymail',    # ← agregar
     'rest_framework.authtoken',
     'django_filters',              # ← nuevo (nombre de app es django_filters)
     'whitenoise.runserver_nostatic',
@@ -146,6 +153,40 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STRIPE_SECRET_KEY     = env('STRIPE_SECRET_KEY',     default='sk_test_placeholder')
 STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='pk_test_placeholder')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='whsec_placeholder')
+
+# core/settings.py — configuración de correo electrónico
+
+# ── CORREO ELECTRÓNICO ────────────────────────────────────────────────────
+# En desarrollo: usar el backend de consola (imprime en terminal)
+# En producción: anymail con SendGrid
+EMAIL_BACKEND = env(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend'
+)
+
+# Dirección del remitente visible en los correos
+DEFAULT_FROM_EMAIL = env(
+    'DEFAULT_FROM_EMAIL',
+    default='ERP Django <noreply@erp-django.com>'
+)
+
+# Nombre del asunto con prefijo del sistema
+EMAIL_SUBJECT_PREFIX = '[ERP Django] '
+
+# Administradores que reciben alertas del sistema
+ADMINS = [
+    ('Admin ERP', env('ADMIN_EMAIL', default='admin@erp-django.com')),
+]
+
+# Configuración de django-anymail (SendGrid)
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
+ANYMAIL = {
+    'SENDGRID_API_KEY': SENDGRID_API_KEY,
+    # Reintentar envíos fallidos automáticamente
+    'SEND_DEFAULTS': {
+        'esp_extra': {'ip_pool_name': 'transactional'},
+    },
+}
 
 # ── JAZZMIN — Personalización del admin con Fable 5 AzulERP ───────────────
 JAZZMIN_SETTINGS = {
@@ -266,3 +307,64 @@ ACCOUNT_SESSION_REMEMBER       = True           # recordar sesión
 # LOGIN_URL           = '/accounts/login/'
 # LOGIN_REDIRECT_URL  = '/productos/'
 LOGOUT_REDIRECT_URL = '/'
+
+# core/settings.py — agregar al final (después de JAZZMIN_SETTINGS):
+
+# ── CELERY — Cola de tareas asíncronas ────────────────────────────────────
+# Broker: Redis almacena los mensajes de las tareas pendientes
+CELERY_BROKER_URL = env('REDIS_URL', default='redis://localhost:6379/0')
+
+# Backend: Redis almacena los resultados de las tareas (opcional)
+CELERY_RESULT_BACKEND = env('REDIS_URL', default='redis://localhost:6379/0')
+
+# Formato de serialización (JSON es seguro y portable)
+CELERY_ACCEPT_CONTENT    = ['json']
+CELERY_TASK_SERIALIZER   = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# Zona horaria (heredar de Django)
+CELERY_TIMEZONE = TIME_ZONE   # 'America/Mexico_City'
+
+# Reintentos automáticos ante fallos de conexión al broker
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Tiempo máximo que puede correr una tarea antes de ser terminada (segundos)
+CELERY_TASK_SOFT_TIME_LIMIT = 300   # 5 minutos
+CELERY_TASK_TIME_LIMIT       = 360  # 6 minutos (hard limit)
+
+# Prefijo para las colas (útil si se comparte Redis entre proyectos)
+CELERY_TASK_DEFAULT_QUEUE = 'erp_django'
+
+# Para tests: ejecutar tareas sincrónicamente (sin worker)
+# Se activa en tests con @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+import sys
+# Sin Redis ni worker: las tareas corren en el mismo proceso.
+# Se activa solo al correr tests, o con CELERY_EAGER=True en el entorno.
+CELERY_TASK_ALWAYS_EAGER         = env.bool('CELERY_EAGER', default=False) or 'test' in sys.argv
+# core/settings.py — agregar después de CELERY_TASK_ALWAYS_EAGER:
+
+# ── CELERY BEAT — Tareas programadas ──────────────────────────────────────
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+
+    # Verificar stock bajo cada hora
+    'verificar-stock-bajo-cada-hora': {
+        'task':     'ventas.verificar_stock_bajo',
+        'schedule': timedelta(hours=1),
+        'args':     (5,),   # umbral = 5 unidades
+        'options':  {'queue': 'erp_django'},
+    },
+
+    # Reporte de ventas diario a las 8:00 AM (hora México)
+    'reporte-ventas-diario-8am': {
+        'task':     'ventas.reporte_ventas_diario',
+        'schedule': crontab(hour=8, minute=0),
+        'options':  {'queue': 'erp_django'},
+    },
+
+}
+
+# Necesario para que Beat use la zona horaria de Django (no UTC)
+CELERY_BEAT_TIMEZONE = TIME_ZONE   # 'America/Mexico_City'
+CELERY_TASK_EAGER_PROPAGATES     = True

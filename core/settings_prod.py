@@ -63,6 +63,11 @@ SECURE_REFERRER_POLICY         = 'same-origin'
 STATICFILES_STORAGE = 'core.storage.NoStrictManifestStorage'
 
 # ── LOGGING: solo WARNING y superiores en producción ──────────────────────
+# core/settings_prod.py — agregar:
+
+# En producción: usar SendGrid via anymail
+EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
