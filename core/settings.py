@@ -341,6 +341,8 @@ import sys
 # Sin Redis ni worker: las tareas corren en el mismo proceso.
 # Se activa solo al correr tests, o con CELERY_EAGER=True en el entorno.
 CELERY_TASK_ALWAYS_EAGER         = env.bool('CELERY_EAGER', default=False) or 'test' in sys.argv
+CELERY_TASK_EAGER_PROPAGATES     = True
+
 # core/settings.py — agregar después de CELERY_TASK_ALWAYS_EAGER:
 
 # ── CELERY BEAT — Tareas programadas ──────────────────────────────────────
