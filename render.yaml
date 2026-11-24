@@ -12,9 +12,14 @@ services:
       pip install -r requirements.txt
       python manage.py collectstatic --no-input
       python manage.py migrate
-      pip install -r requirements.txt
       python manage.py createsuperuser --noinput || true
-    startCommand: gunicorn core.wsgi --workers 2 --timeout 120 --log-file -
+    # W16: el worker de Celery corre en segundo plano dentro del mismo
+    # servicio (Render Free no tiene Background Workers).
+    startCommand: |
+      if [ "$CELERY_EMBEDDED_WORKER" = "1" ] && [ -n "$REDIS_URL" ]; then
+        celery -A core worker --loglevel=info --queues=erp_django --pool=solo --without-gossip --without-mingle --without-heartbeat &
+      fi
+      exec gunicorn core.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-file -
     healthCheckPath: /
     envVars:
       - key: DJANGO_SETTINGS_MODULE
@@ -28,10 +33,30 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
 
+      # W16: Celery + Redis (Key Value de Render)
+      - key: REDIS_URL             # Internal Key Value URL (redis://red-...:6379)
+        sync: false
+      - key: CELERY_EMBEDDED_WORKER  # 1 = worker dentro del contenedor web
+        value: "1"
+      # W17: correo transaccional con SendGrid  (después de CELERY_EMBEDDED_WORKER)
+      - key: SENDGRID_API_KEY        # SG.xxxx (permiso Mail Send)
+        sync: false
+      - key: DEFAULT_FROM_EMAIL      # ERP Django <sender-verificado@...>
+        sync: false
+      - key: ADMIN_EMAIL             # recibe alertas de stock y errores 500
+        sync: false
+
+      # W17: correo transaccional con SendGrid
+      - key: SENDGRID_API_KEY      # SG.xxxx (permiso Mail Send)
+        sync: false
+      - key: DEFAULT_FROM_EMAIL    # ERP Django <sender-verificado@...>
+        sync: false
+      - key: ADMIN_EMAIL           # recibe alertas de stock y errores 500
+        sync: false
+
 databases:
   - name: erp-django-db
     databaseName: erp_db
     user: erp_user
     plan: free                     # PostgreSQL gratuito en Render (90 días)
     region: oregon
-    

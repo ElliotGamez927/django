@@ -1,19 +1,12 @@
 # core/settings_prod.py
-"""Configuración de producción — Render.com (versión final W03).
+"""Configuración de producción — Render.com.
 
-Hereda settings.py y sobreescribe todo lo necesario para producción.
+Hereda settings.py y sobreescribe lo necesario para producción.
 
 Variables de entorno requeridas en Render Dashboard:
-    SECRET_KEY              → clave aleatoria de ≥ 50 caracteres
-    DATABASE_URL            → proporcionada automáticamente por Render PostgreSQL
-    DJANGO_SETTINGS_MODULE  → core.settings_prod
-    ALLOWED_HOSTS           → tu-app.onrender.com (o dejar vacío para auto)
-
-Uso local con Docker:
-    export DJANGO_SETTINGS_MODULE=core.settings_prod
-    export SECRET_KEY=dev-clave-temporal
-    export DATABASE_URL=postgres://erp_user:erp_pass@db:5432/erp_db
-    gunicorn core.wsgi --bind 0.0.0.0:8000
+    SECRET_KEY, DATABASE_URL, DJANGO_SETTINGS_MODULE=core.settings_prod
+    REDIS_URL, CELERY_EMBEDDED_WORKER=1           (W16)
+    SENDGRID_API_KEY, DEFAULT_FROM_EMAIL, ADMIN_EMAIL   (W17)
 """
 from .settings import *   # hereda toda la configuración base
 import os
@@ -58,16 +51,11 @@ SECURE_CONTENT_TYPE_NOSNIFF    = True
 SECURE_REFERRER_POLICY         = 'same-origin'
 
 # ── ARCHIVOS ESTÁTICOS ─────────────────────────────────────────────────────
-# WhiteNoise ya configurado en settings.py; solo confirmar almacenamiento
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATICFILES_STORAGE = 'core.storage.NoStrictManifestStorage'
 
-# ── LOGGING: solo WARNING y superiores en producción ──────────────────────
-# core/settings_prod.py — agregar:
-
-# En producción: usar SendGrid via anymail
-EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
-
+# ── LOGGING ────────────────────────────────────────────────────────────────
+# Nivel INFO en root para ver en los Logs de Render los mensajes de las
+# tareas (webhook, correo). Si hay demasiado ruido, volver a 'WARNING'.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -82,7 +70,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'WARNING',
+        'level': 'INFO',
     },
     'loggers': {
         'django.security': {
@@ -93,47 +81,29 @@ LOGGING = {
     },
 }
 
-# core/settings_prod.py — agregar al final, después de los SECURE_* headers:
+# ── CORREO (W17): SendGrid vía django-anymail ─────────────────────────────
+# Si existe SENDGRID_API_KEY se envía por SendGrid; si no, el correo queda
+# en los Logs (backend heredado de settings.py: consola).
+if SENDGRID_API_KEY:
+    EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
 
 # ── ALMACENAMIENTO DE ARCHIVOS MEDIA (producción) ─────────────────────────
 # Usar django-storages con S3 para persistir archivos entre deploys.
-# Configurar estas variables en el dashboard de Render:
-#   AWS_ACCESS_KEY_ID       → Access Key del bucket
-#   AWS_SECRET_ACCESS_KEY   → Secret Key del bucket
-#   AWS_STORAGE_BUCKET_NAME → Nombre del bucket
-#   AWS_S3_REGION_NAME      → Región (ej. us-east-1)
-#   AWS_S3_CUSTOM_DOMAIN    → Dominio CDN opcional
-
+# Variables en Render: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+# AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME, AWS_S3_CUSTOM_DOMAIN (opcional)
 _bucket = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
 
 if _bucket:
     # Solo activa S3 si la variable de entorno está configurada
-    DEFAULT_FILE_STORAGE  = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_ACCESS_KEY_ID     = os.environ.get('AWS_ACCESS_KEY_ID', '')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+    DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_ACCESS_KEY_ID       = os.environ.get('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY   = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
     AWS_STORAGE_BUCKET_NAME = _bucket
-    AWS_S3_REGION_NAME    = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
-    AWS_DEFAULT_ACL       = None        # el bucket controla el acceso
-    AWS_S3_FILE_OVERWRITE = False       # no sobreescribir si el nombre ya existe
-    AWS_QUERYSTRING_AUTH  = False       # URLs públicas (sin firma)
-    MEDIA_URL             = f'https://{_bucket}.s3.amazonaws.com/'
+    AWS_S3_REGION_NAME      = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_DEFAULT_ACL         = None        # el bucket controla el acceso
+    AWS_S3_FILE_OVERWRITE   = False       # no sobreescribir si el nombre ya existe
+    AWS_QUERYSTRING_AUTH    = False       # URLs públicas (sin firma)
+    MEDIA_URL               = f'https://{_bucket}.s3.amazonaws.com/'
 
-# ── CELERY EN PRODUCCIÓN (sin Redis) ───────────────────────────────────────
-_redis_url = os.environ.get('REDIS_URL', '').strip()
-
-if _redis_url and ('localhost' not in _redis_url and '127.0.0.1' not in _redis_url):
-    CELERY_BROKER_URL = _redis_url
-    CELERY_RESULT_BACKEND = _redis_url
-else:
-    CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = False
-    CELERY_BROKER_URL = 'memory://'
-    CELERY_RESULT_BACKEND = 'cache+memory://'
-    CELERY_TASK_IGNORE_RESULT = True
-
-# ── CORREO ELECTRÓNICO ────────────────────────────────────────────────────
-# Usar SendGrid solo si se activa explícitamente; si no, imprimir correo en logs de Render
-if os.environ.get('USE_SENDGRID', '').lower() == 'true' and os.environ.get('SENDGRID_API_KEY'):
-    EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# NOTA: Celery NO se configura aquí. En producción REDIS_URL (Render)
+# activa Redis + worker embebido desde settings.py (W16).

@@ -1,11 +1,10 @@
 # core/settings.py
-# core/settings.py — verificar que existe al inicio:
-from datetime import timedelta   # ← agregar si no está
-
-# (ya debería estar si se instaló dj-database-url en W03)
+# Versión corregida: W16 (Celery + Redis / modo EAGER) + W17 (SendGrid)
+from datetime import timedelta
+from pathlib import Path
 
 import environ
-from pathlib import Path
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -13,15 +12,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(DEBUG=(bool, True))
 environ.Env.read_env(BASE_DIR / '.env')
 
-SECRET_KEY  = env('SECRET_KEY', default='dev-key-insegura-solo-para-desarrollo')
-DEBUG = env('DEBUG', default=True)
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.onrender.com', 'localhost', '127.0.0.1'])
-#DEBUG       = env('DEBUG', default=True)
-#ALLOWED_HOSTS = []
+SECRET_KEY    = env('SECRET_KEY', default='dev-key-insegura-solo-para-desarrollo')
+DEBUG         = env('DEBUG', default=True)
+ALLOWED_HOSTS = env.list(
+    'ALLOWED_HOSTS',
+    default=['.onrender.com', 'localhost', '127.0.0.1'],
+)
 
 # ── Apps instaladas ───────────────────────────────────────────────────────
-
-# core/settings.py — actualizar INSTALLED_APPS:
 INSTALLED_APPS = [
     'jazzmin',
     'django.contrib.admin',
@@ -36,10 +34,9 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'rest_framework',
-    # core/settings.py — en INSTALLED_APPS, después de rest_framework:
-    'anymail',    # ← agregar
+    'anymail',                     # W17: correo con SendGrid
     'rest_framework.authtoken',
-    'django_filters',              # ← nuevo (nombre de app es django_filters)
+    'django_filters',
     'whitenoise.runserver_nostatic',
     # Apps del ERP
     'core',
@@ -49,7 +46,7 @@ INSTALLED_APPS = [
     'ventas',
     'reportes',
     'configuracion',
-    'catalogo',                    # ← nuevo
+    'catalogo',
 ]
 
 SITE_ID = 1
@@ -63,13 +60,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',   # ← agregar al final
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
 
 # ── Templates ─────────────────────────────────────────────────────────────
-# core/settings.py — actualizar TEMPLATES[0]['OPTIONS']['context_processors']:
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -103,23 +99,13 @@ USE_I18N      = True
 USE_TZ        = True
 
 # ── Archivos estáticos ────────────────────────────────────────────────────
-#STATIC_URL  = '/static/'
-#STATIC_ROOT = BASE_DIR / 'staticfiles'
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-
-# settings.py — sección de estáticos (verificar, no duplicar)
 STATIC_URL  = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'   # destino de collectstatic
+STATIC_ROOT = BASE_DIR / 'staticfiles'      # destino de collectstatic
 
 # STATICFILES_DIRS ≠ STATIC_ROOT (error frecuente)
-STATICFILES_DIRS = [BASE_DIR / 'static']  # fuentes adicionales
+STATICFILES_DIRS = [BASE_DIR / 'static']    # fuentes adicionales
 
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATICFILES_STORAGE = 'core.storage.NoStrictManifestStorage'
-
-
-
 
 # ── Archivos media ────────────────────────────────────────────────────────
 MEDIA_URL  = '/media/'
@@ -130,11 +116,10 @@ LOGIN_URL           = '/accounts/login/'
 LOGIN_REDIRECT_URL  = '/productos/'
 LOGOUT_REDIRECT_URL = '/'
 
-# core/settings.py — reemplazar la configuración REST_FRAMEWORK de W01:
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',   # para el navegador
-        'rest_framework.authentication.TokenAuthentication',     # para clientes externos
+        'rest_framework.authentication.SessionAuthentication',   # navegador
+        'rest_framework.authentication.TokenAuthentication',     # clientes externos
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -145,50 +130,100 @@ REST_FRAMEWORK = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# core/settings.py — agregar al final del archivo
-
-# core/settings.py — agregar al final (antes de JAZZMIN_SETTINGS):
-
-# ── STRIPE (Pasarela de pago) ──────────────────────────────────────────────
-STRIPE_SECRET_KEY     = env('STRIPE_SECRET_KEY',     default='sk_test_placeholder')
+# ── STRIPE (Pasarela de pago) ─────────────────────────────────────────────
+STRIPE_SECRET_KEY      = env('STRIPE_SECRET_KEY',      default='sk_test_placeholder')
 STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='pk_test_placeholder')
-STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='whsec_placeholder')
+STRIPE_WEBHOOK_SECRET  = env('STRIPE_WEBHOOK_SECRET',  default='whsec_placeholder')
 
-# core/settings.py — configuración de correo electrónico
-
-# ── CORREO ELECTRÓNICO ────────────────────────────────────────────────────
-# En desarrollo: usar el backend de consola (imprime en terminal)
-# En producción: anymail con SendGrid
+# ── CORREO ELECTRÓNICO (W17) ──────────────────────────────────────────────
+# En desarrollo: backend de consola (imprime el correo en la terminal).
+# En producción: settings_prod.py activa anymail + SendGrid si existe
+#                SENDGRID_API_KEY.
+# En tests: Django usa SIEMPRE locmem (mail.outbox), sin importar esto.
 EMAIL_BACKEND = env(
     'EMAIL_BACKEND',
     default='django.core.mail.backends.console.EmailBackend'
 )
 
-# Dirección del remitente visible en los correos
+# Remitente visible. En SendGrid DEBE ser un "Sender" verificado
+# (Settings → Sender Authentication); si no, SendGrid responde 403.
 DEFAULT_FROM_EMAIL = env(
     'DEFAULT_FROM_EMAIL',
     default='ERP Django <noreply@erp-django.com>'
 )
+# Remitente de los correos de error que Django envía a ADMINS
+# (por defecto 'root@localhost', que SendGrid rechazaría).
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
-# Nombre del asunto con prefijo del sistema
+# Prefijo SOLO para mail_admins()/mail_managers() (errores del sistema);
+# no afecta a send_mail() ni a EmailMultiAlternatives.
 EMAIL_SUBJECT_PREFIX = '[ERP Django] '
 
-# Administradores que reciben alertas del sistema
+# Administradores que reciben alertas del sistema (stock bajo, errores 500)
 ADMINS = [
     ('Admin ERP', env('ADMIN_EMAIL', default='admin@erp-django.com')),
 ]
 
-# Configuración de django-anymail (SendGrid)
+# URL pública del sitio para los enlaces de los correos (las tareas
+# Celery no tienen request → no hay build_absolute_uri()).
+# Render define RENDER_EXTERNAL_URL automáticamente en cada servicio.
+SITE_URL = env(
+    'SITE_URL',
+    default=env('RENDER_EXTERNAL_URL', default='http://127.0.0.1:8000')
+).rstrip('/')
+
+# django-anymail (SendGrid)
+# NO agregar 'esp_extra': {'ip_pool_name': ...}: los IP Pools solo existen
+# con IP dedicada (planes de pago) y SendGrid rechaza el envío en cuenta gratuita.
 SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
 ANYMAIL = {
     'SENDGRID_API_KEY': SENDGRID_API_KEY,
-    # Reintentar envíos fallidos automáticamente
-    'SEND_DEFAULTS': {
-        'esp_extra': {'ip_pool_name': 'transactional'},
-    },
 }
 
-# ── JAZZMIN — Personalización del admin con Fable 5 AzulERP ───────────────
+# ── CORREO ELECTRÓNICO (W17) ──────────────────────────────────────────────
+# En desarrollo: backend de consola (imprime el correo en la terminal).
+# En producción: settings_prod.py activa anymail + SendGrid si existe
+#                SENDGRID_API_KEY.
+# En tests: Django usa SIEMPRE locmem (mail.outbox), sin importar esto.
+EMAIL_BACKEND = env(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend'
+)
+
+# Remitente visible. En SendGrid DEBE ser un "Sender" verificado
+# (Settings → Sender Authentication); si no, SendGrid responde 403.
+DEFAULT_FROM_EMAIL = env(
+    'DEFAULT_FROM_EMAIL',
+    default='ERP Django <noreply@erp-django.com>'
+)
+# Remitente de los correos de error que Django envía a ADMINS
+# (por defecto 'root@localhost', que SendGrid rechazaría).
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Prefijo SOLO para mail_admins()/mail_managers() (errores del sistema);
+# no afecta a send_mail() ni a EmailMultiAlternatives.
+EMAIL_SUBJECT_PREFIX = '[ERP Django] '
+
+# Administradores que reciben alertas del sistema (stock bajo, errores 500)
+ADMINS = [
+    ('Admin ERP', env('ADMIN_EMAIL', default='admin@erp-django.com')),
+]
+
+# URL pública del sitio para los enlaces de los correos (las tareas
+# Celery no tienen request → no hay build_absolute_uri()).
+# Render define RENDER_EXTERNAL_URL automáticamente en cada servicio.
+SITE_URL = env(
+    'SITE_URL',
+    default=env('RENDER_EXTERNAL_URL', default='http://127.0.0.1:8000')
+).rstrip('/')
+
+# django-anymail (SendGrid)
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
+ANYMAIL = {
+    'SENDGRID_API_KEY': SENDGRID_API_KEY,
+}
+
+# ── JAZZMIN — Personalización del admin ───────────────────────────────────
 JAZZMIN_SETTINGS = {
     # Identidad
     'site_title':       'ERP Django',
@@ -274,7 +309,7 @@ JAZZMIN_UI_TWEAKS = {
     'sidebar_nav_legacy_style': False,
     'sidebar_nav_flat_style':   False,
     'theme':                    'default',
-    "default_theme_mode":       "auto",
+    'default_theme_mode':       'auto',
     'button_classes': {
         'primary':   'btn-primary',
         'secondary': 'btn-secondary',
@@ -284,9 +319,6 @@ JAZZMIN_UI_TWEAKS = {
         'success':   'btn-success',
     },
 }
-
-# ── DJANGO SITES (requerido por allauth) ──────────────────────────────────
-SITE_ID = 1
 
 # ── AUTHENTICATION BACKENDS ───────────────────────────────────────────────
 AUTHENTICATION_BACKENDS = [
@@ -303,19 +335,27 @@ ACCOUNT_EMAIL_VERIFICATION     = 'none'         # no enviar email de verificaci�
 ACCOUNT_LOGOUT_ON_GET          = True           # logout sin confirmar (dev)
 ACCOUNT_SESSION_REMEMBER       = True           # recordar sesión
 
-# LOGIN_URL y LOGIN_REDIRECT_URL ya definidos en W01:
-# LOGIN_URL           = '/accounts/login/'
-# LOGIN_REDIRECT_URL  = '/productos/'
-LOGOUT_REDIRECT_URL = '/'
+# ── CELERY — Cola de tareas asíncronas (W16) ──────────────────────────────
+# REDIS_URL definida (Render → Key Value):
+#     las tareas se encolan en Redis y las procesa el worker.
+# REDIS_URL vacía (laboratorio sin Docker / tests):
+#     modo EAGER → .delay() ejecuta la tarea en el mismo proceso,
+#     sin broker ni worker. El código de las vistas no cambia.
+REDIS_URL = env('REDIS_URL', default='')
 
-# core/settings.py — agregar al final (después de JAZZMIN_SETTINGS):
+if REDIS_URL:
+    # Broker: Redis almacena los mensajes de las tareas pendientes
+    CELERY_BROKER_URL        = REDIS_URL
+    # Backend: Redis almacena los resultados de las tareas
+    CELERY_RESULT_BACKEND    = REDIS_URL
+    CELERY_TASK_ALWAYS_EAGER = False
+else:
+    CELERY_BROKER_URL        = 'memory://'
+    CELERY_RESULT_BACKEND    = 'cache+memory://'
+    CELERY_TASK_ALWAYS_EAGER = True
 
-# ── CELERY — Cola de tareas asíncronas ────────────────────────────────────
-# Broker: Redis almacena los mensajes de las tareas pendientes
-CELERY_BROKER_URL = env('REDIS_URL', default='redis://localhost:6379/0')
-
-# Backend: Redis almacena los resultados de las tareas (opcional)
-CELERY_RESULT_BACKEND = env('REDIS_URL', default='redis://localhost:6379/0')
+# Los resultados caducan en 1 hora (el Key Value gratuito tiene 25 MB)
+CELERY_RESULT_EXPIRES = 3600
 
 # Formato de serialización (JSON es seguro y portable)
 CELERY_ACCEPT_CONTENT    = ['json']
@@ -330,24 +370,15 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Tiempo máximo que puede correr una tarea antes de ser terminada (segundos)
 CELERY_TASK_SOFT_TIME_LIMIT = 300   # 5 minutos
-CELERY_TASK_TIME_LIMIT       = 360  # 6 minutos (hard limit)
+CELERY_TASK_TIME_LIMIT      = 360   # 6 minutos (hard limit)
 
 # Prefijo para las colas (útil si se comparte Redis entre proyectos)
 CELERY_TASK_DEFAULT_QUEUE = 'erp_django'
 
-# Para tests: ejecutar tareas sincrónicamente (sin worker)
-# Se activa en tests con @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
-import sys
-# Sin Redis ni worker: las tareas corren en el mismo proceso.
-# Se activa solo al correr tests, o con CELERY_EAGER=True en el entorno.
-CELERY_TASK_ALWAYS_EAGER         = env.bool('CELERY_EAGER', default=False) or 'test' in sys.argv
-CELERY_TASK_EAGER_PROPAGATES     = True
-
-# core/settings.py — agregar después de CELERY_TASK_ALWAYS_EAGER:
+# En modo EAGER, las excepciones de la tarea se propagan (útil en tests)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # ── CELERY BEAT — Tareas programadas ──────────────────────────────────────
-from celery.schedules import crontab
-
 CELERY_BEAT_SCHEDULE = {
 
     # Verificar stock bajo cada hora
@@ -369,4 +400,3 @@ CELERY_BEAT_SCHEDULE = {
 
 # Necesario para que Beat use la zona horaria de Django (no UTC)
 CELERY_BEAT_TIMEZONE = TIME_ZONE   # 'America/Mexico_City'
-CELERY_TASK_EAGER_PROPAGATES     = True

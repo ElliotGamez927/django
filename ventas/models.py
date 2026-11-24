@@ -221,6 +221,7 @@ class Pedido(models.Model):
 
     # ventas/models.py — en Pedido, después de items_snapshot:
 
+    # W17: idempotencia del correo de confirmación
     correo_enviado = models.BooleanField(
         default=False,
         verbose_name='Correo de confirmación enviado',
