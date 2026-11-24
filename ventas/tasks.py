@@ -259,3 +259,149 @@ def _enviar_alerta_stock(productos_bajos: list, umbral: int) -> bool:
         f'{len(productos_bajos)} productos.'
     )
     return True
+
+# ventas/tasks.py — agregar al final del archivo
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    name='ventas.reporte_ventas_diario',
+)
+def reporte_ventas_diario(self) -> dict:
+    """Genera y envía el reporte diario de ventas al administrador.
+
+    Se ejecuta automáticamente a las 8:00 AM mediante Celery Beat
+    (CELERY_BEAT_SCHEDULE en settings.py).
+
+    Cálculos realizados en SQL (no en Python) para máxima eficiencia:
+        - Total de pedidos pagados hoy (tienda en línea)
+        - Total facturado (suma de total_pagado)
+        - Top 5 productos por ingreso del día (ventas del ERP)
+
+    Returns:
+        dict serializable a JSON con fecha, total_pedidos, total_facturado,
+        top_productos y correo_enviado.
+    """
+    from django.db.models import (
+        DecimalField, ExpressionWrapper, F, Sum,
+    )
+
+    from configuracion.models import ConfiguracionERP      # import local
+    from ventas.models        import DetalleVenta, Pedido  # import local
+
+    hoy    = timezone.localdate()
+    config = ConfiguracionERP.get_instance()
+
+    # ── 1. KPIs del día (una query SQL con COUNT y SUM) ────────────────
+    pedidos_hoy = Pedido.objects.filter(
+        fecha_pedido__date=hoy,
+        estado='pagado',
+    )
+    total_pedidos   = pedidos_hoy.count()
+    total_facturado = (
+        pedidos_hoy.aggregate(total=Sum('total_pagado'))['total']
+        or Decimal('0.00')
+    )
+
+    # ── 2. Top 5 productos por ingreso del día (una query SQL) ─────────
+    filas = (
+        DetalleVenta.objects
+        .filter(venta__fecha__date=hoy)
+        .values('producto__nombre')
+        .annotate(
+            unidades=Sum('cantidad'),
+            ingreso=Sum(
+                ExpressionWrapper(
+                    F('cantidad') * F('precio_unitario'),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                )
+            ),
+        )
+        .order_by('-ingreso')[:5]
+    )
+    top_productos = [
+        {
+            'nombre':   fila['producto__nombre'],
+            'unidades': fila['unidades'],
+            'ingreso':  (fila['ingreso'] or Decimal('0.00')).quantize(
+                Decimal('0.01')
+            ),
+        }
+        for fila in filas
+    ]
+
+    logger.info(
+        f'[reporte_diario] {hoy}: {total_pedidos} pedidos, '
+        f'${total_facturado} facturados, '
+        f'{len(top_productos)} productos top.'
+    )
+
+    # ── 3. Enviar correo al admin si está configurado ──────────────────
+    correo_enviado = False
+    if settings.ADMINS:
+        correo_enviado = _enviar_reporte_ventas(
+            hoy, total_pedidos, total_facturado, top_productos, config
+        )
+
+    # El resultado debe poder serializarse a JSON (Redis): los Decimal
+    # se devuelven como texto.
+    return {
+        'fecha':           str(hoy),
+        'total_pedidos':   total_pedidos,
+        'total_facturado': str(total_facturado),
+        'top_productos':   [
+            {**p, 'ingreso': str(p['ingreso'])} for p in top_productos
+        ],
+        'correo_enviado':  correo_enviado,
+    }
+
+
+def _enviar_reporte_ventas(
+    fecha, total_pedidos, total_facturado, top_productos, config
+) -> bool:
+    """Envía el reporte diario al primer administrador configurado.
+
+    Args:
+        fecha:           Objeto date del día reportado.
+        total_pedidos:   Número de pedidos pagados.
+        total_facturado: Decimal con la suma total.
+        top_productos:   Lista de dicts con nombre, unidades, ingreso.
+        config:          Instancia de ConfiguracionERP.
+
+    Returns:
+        True si el correo se envió; False si falló (se registra en el log).
+    """
+    fecha_str = fecha.strftime('%d/%m/%Y')
+
+    contexto = {
+        'fecha':           fecha_str,
+        'config':          config,
+        'total_pedidos':   total_pedidos,
+        'total_facturado': total_facturado,
+        'top_productos':   top_productos,
+        # Sin URL fija: SITE_URL = RENDER_EXTERNAL_URL en Render
+        'url_admin':       _url_absoluta('admin:index'),
+    }
+
+    asunto      = f'Reporte de ventas del {fecha_str} — {config.nombre_empresa}'
+    texto_plano = render_to_string('emails/reporte_ventas.txt',  contexto)
+    html_body   = render_to_string('emails/reporte_ventas.html', contexto)
+
+    _admin_nombre, admin_correo = settings.ADMINS[0]
+
+    mensaje = EmailMultiAlternatives(
+        subject    = asunto,
+        body       = texto_plano,
+        from_email = settings.DEFAULT_FROM_EMAIL,
+        to         = [admin_correo],
+    )
+    mensaje.attach_alternative(html_body, 'text/html')
+
+    try:
+        mensaje.send()
+    except Exception as exc:
+        logger.error(f'[reporte_diario] Error al enviar reporte: {exc}')
+        return False
+
+    logger.info(f'[reporte_diario] Reporte enviado a {admin_correo}.')
+    return True

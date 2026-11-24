@@ -21,10 +21,14 @@ python manage.py collectstatic --noinput --clear
 echo "==> [entrypoint] Verificando la configuración de Django..."
 python manage.py check --deploy 2>/dev/null || python manage.py check
 
-# ── W16: worker de Celery embebido (opción gratuita de Render) ───────
+# ── W16/W18: worker de Celery embebido (+ Beat opcional) ─────────────
 if [ "${CELERY_EMBEDDED_WORKER:-0}" = "1" ] && [ -n "${REDIS_URL:-}" ]; then
-    echo "==> [entrypoint] Iniciando worker de Celery embebido (cola erp_django)..."
-    celery -A core worker \
+    BEAT_FLAG=""
+    if [ "${CELERY_EMBEDDED_BEAT:-0}" = "1" ]; then
+        BEAT_FLAG="-B --schedule=/tmp/celerybeat-schedule"
+    fi
+    echo "==> [entrypoint] Iniciando worker de Celery embebido (cola erp_django) ${BEAT_FLAG}..."
+    celery -A core worker $BEAT_FLAG \
         --loglevel=info \
         --queues=erp_django \
         --pool=solo \
@@ -33,7 +37,6 @@ else
     echo "==> [entrypoint] Worker de Celery embebido DESACTIVADO."
 fi
 
-echo "==> [entrypoint] Iniciando Gunicorn en 0.0.0.0:${PORT:-8000}..."
 exec gunicorn core.wsgi \
     --bind 0.0.0.0:${PORT:-8000} \
     --workers 2 \

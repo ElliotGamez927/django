@@ -1,23 +1,21 @@
-📊 REPORTE DE VENTAS DEL DÍA — {{ fecha }}
+{% autoescape off %}📊 REPORTE DE VENTAS DEL DÍA — {{ fecha }}
 {{ config.nombre_empresa }}
 ═══════════════════════════════════════════
 
 RESUMEN:
   Pedidos pagados hoy: {{ total_pedidos }}
   Total facturado:     ${{ total_facturado }}
-
 {% if top_productos %}
-TOP PRODUCTOS:
+TOP PRODUCTOS (ventas del ERP):
 {% for prod in top_productos %}
   {{ forloop.counter }}. {{ prod.nombre }}
-     Unidades: {{ prod.unidades }} | Ingreso: ${{ prod.ingreso }}
-{% endfor %}
+     Unidades: {{ prod.unidades }} | Ingreso: ${{ prod.ingreso }}{% endfor %}
 {% else %}
 Sin ventas registradas hoy.
 {% endif %}
-
 Panel de administración: {{ url_admin }}
 
 ───────────────────────────────────────────
-Generado automáticamente a las 8:00 AM
-ERP Django · {{ config.nombre_empresa }}
+Generado automáticamente por ERP Django
+{{ config.nombre_empresa }}
+{% endautoescape %}

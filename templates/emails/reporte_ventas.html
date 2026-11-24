@@ -120,7 +120,7 @@
     <!-- CUERPO -->
     <div class="body">
 
-        <!-- KPIs -->
+        <!-- KPIs (pedidos de la tienda en línea) -->
         <div class="kpi-grid">
             <div class="kpi-row">
                 <div class="kpi-card">
@@ -136,7 +136,7 @@
 
         {% if top_productos %}
         <p style="font-weight:600;color:#0A2342;margin-bottom:8px;">
-            Top {{ top_productos|length }} productos del día
+            Top {{ top_productos|length }} productos del día (ventas del ERP)
         </p>
         <table>
             <thead>
@@ -173,7 +173,7 @@
     </div>
 
     <div class="footer">
-        <p>Generado automáticamente por ERP Django a las 8:00 AM</p>
+        <p>Generado automáticamente por ERP Django</p>
         <p>{{ config.nombre_empresa }}</p>
     </div>
 

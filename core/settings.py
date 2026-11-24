@@ -1,5 +1,8 @@
 # core/settings.py
 # Versión corregida: W16 (Celery + Redis / modo EAGER) + W17 (SendGrid)
+# core/settings.py — al inicio del archivo:
+
+
 from datetime import timedelta
 from pathlib import Path
 
@@ -377,6 +380,8 @@ CELERY_TASK_DEFAULT_QUEUE = 'erp_django'
 
 # En modo EAGER, las excepciones de la tarea se propagan (útil en tests)
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# core/settings.py — al final, después del bloque CELERY de W16:
 
 # ── CELERY BEAT — Tareas programadas ──────────────────────────────────────
 CELERY_BEAT_SCHEDULE = {
