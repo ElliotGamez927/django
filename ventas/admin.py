@@ -39,10 +39,11 @@ class DetalleVentaAdmin(admin.ModelAdmin):
     search_fields = ['producto__nombre', 'venta__pk']
     readonly_fields = ['precio_unitario']
 
+
+
     @admin.display(description='Subtotal ($)')
     def subtotal_admin(self, obj: DetalleVenta) -> str:
         return f"${obj.subtotal:.2f}"
-
 
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
@@ -53,3 +54,16 @@ class PedidoAdmin(admin.ModelAdmin):
     search_fields  = ['numero_pedido', 'cliente__nombre']
     list_filter    = ['estado']
     readonly_fields = ['fecha_pedido']
+
+    actions = ['reenviar_correo_confirmacion']
+
+    @admin.action(description='Reenviar correo de confirmación')
+    def reenviar_correo_confirmacion(self, request, queryset):
+        from ventas.tasks import enviar_confirmacion_pedido
+        total = 0
+        for pedido in queryset.filter(estado='pagado'):
+            # correo_enviado=False para que la tarea no lo salte
+            Pedido.objects.filter(pk=pedido.pk).update(correo_enviado=False)
+            enviar_confirmacion_pedido.delay(pedido.pk)
+            total += 1
+        self.message_user(request, f'Reenvío solicitado para {total} pedido(s).')
