@@ -1,4 +1,4 @@
-# core/celery.py
+# core/celery.py ##
 """Configuración de la aplicación Celery para el proyecto ERP Django.
 
 Este archivo debe importarse ANTES de cualquier tarea (@shared_task)
